@@ -116,7 +116,7 @@ class InferenceController:
     # Visualisation computation (pure Python, no Qt)
     # ------------------------------------------------------------------ #
 
-    def compute_visualization(
+    def compute_heatmap(
         self,
         pil_image: Image.Image,
         score_map: np.ndarray,
@@ -124,19 +124,17 @@ class InferenceController:
         sigma: float,
         display_target: int,
         heat_min_pct: int,
-        seg_pct: int,
-        epsilon: float,
-    ) -> Tuple[Image.Image, Image.Image, list, float, tuple]:
+    ) -> Tuple[Image.Image, Image.Image, float, tuple, Optional[np.ndarray]]:
         """
-        Compute the left (segmentation) and right (heatmap overlay) display images
-        plus the polygon contours for the left canvas.
+        Compute resized raw image and heatmap overlay. Returns smoothed score array
+        so compute_segmentation() can reuse it without re-running the Gaussian.
 
         Returns:
-            left_image   — PIL Image (raw, resized to display_target)
-            right_image  — PIL Image (heatmap composited on raw)
-            contours     — list of [(x, y), ...] in display coordinates
-            scale        — uniform scale factor applied (display / original)
-            offset       — (off_x, off_y) crop offset; always (0, 0) for now
+            left_image  — PIL Image (raw, resized to display_target)
+            right_image — PIL Image (heatmap composited on raw)
+            scale       — uniform scale factor applied (display / original)
+            offset      — (off_x, off_y) crop offset; always (0, 0) for now
+            smoothed_s  — smoothed score map ndarray, or None if score_map is None
         """
         w, h = pil_image.size
         scale = display_target / max(w, h)
@@ -145,9 +143,8 @@ class InferenceController:
         offset = (0, 0)
 
         if score_map is None:
-            return left_image, left_image.copy(), [], scale, offset
+            return left_image, left_image.copy(), scale, offset, None
 
-        # --- Smooth + clip for heatmap colour range ---
         s = gaussian_filter(score_map, sigma=sigma) if sigma > 0 else score_map.copy()
 
         v_min_thr = np.percentile(s, heat_min_pct)
@@ -167,10 +164,28 @@ class InferenceController:
         comp = left_image.convert("RGBA")
         right_image = Image.alpha_composite(comp, overlay_pil).convert("RGB")
 
-        # --- Threshold → binary mask → contours ---
-        seg_thr = np.percentile(s, seg_pct)
-        mask = (s > seg_thr).astype(np.uint8) * 255
-        mask = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+        return left_image, right_image, scale, offset, s
+
+    def compute_segmentation(
+        self,
+        smoothed_s: Optional[np.ndarray],
+        seg_pct: int,
+        epsilon: float,
+        display_w: int,
+        display_h: int,
+    ) -> list:
+        """
+        Compute polygon contours from a smoothed score map at the given percentile threshold.
+
+        Returns:
+            contours — list of [(x, y), ...] point lists in display coordinates
+        """
+        if smoothed_s is None:
+            return []
+
+        seg_thr = np.percentile(smoothed_s, seg_pct)
+        mask = (smoothed_s > seg_thr).astype(np.uint8) * 255
+        mask = cv2.resize(mask, (display_w, display_h), interpolation=cv2.INTER_NEAREST)
         kernel = np.ones((3, 3), np.uint8)
         mask = cv2.erode(mask, kernel, iterations=1)
 
@@ -187,4 +202,23 @@ class InferenceController:
             if len(pts) >= 3:
                 contours.append(pts)
 
-        return left_image, right_image, contours, scale, offset
+        return contours
+
+    def compute_visualization(
+        self,
+        pil_image: Image.Image,
+        score_map: np.ndarray,
+        alpha: float,
+        sigma: float,
+        display_target: int,
+        heat_min_pct: int,
+        seg_pct: int,
+        epsilon: float,
+    ) -> Tuple[Image.Image, Image.Image, list, float, tuple]:
+        """Compatibility shim — delegates to compute_heatmap + compute_segmentation."""
+        left_pil, right_pil, scale, offset, s = self.compute_heatmap(
+            pil_image, score_map, alpha, sigma, display_target, heat_min_pct
+        )
+        w, h = left_pil.size
+        contours = self.compute_segmentation(s, seg_pct, epsilon, w, h)
+        return left_pil, right_pil, contours, scale, offset

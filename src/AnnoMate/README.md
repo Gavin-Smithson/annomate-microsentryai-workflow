@@ -1,1 +1,0 @@
-# AnnoMate Codebase

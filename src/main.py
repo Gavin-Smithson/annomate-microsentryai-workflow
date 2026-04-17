@@ -1,160 +1,114 @@
-"""
-Application Entry Point for AnnoMate and MicroSentryAI.
-
-This module initializes the PySide6 application, configures the main window with
-integrated tabs (AnnoMate, MicroSentryAI, and Validation), and establishes
-bidirectional synchronization for navigation, data transfer, and view state.
-"""
-
 import sys
-from typing import List
-
 from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QTabWidget,
-    QInputDialog,
-    QColorDialog,
+    QApplication, QMainWindow, QTabWidget, QVBoxLayout, QWidget, QInputDialog,
 )
-from PySide6.QtCore import Qt
 
-# Local Application Imports
-from AnnoMate.adapter import AnnotatorTab
-from MicroSentryAI.adapter import MicroSentryTab
-from Validation.adapter import ValidationTab
+from core.logger import setup_logging
+setup_logging()
+
+from core.dataset_state import DatasetState
+from core.inference_state import InferenceState
+from core.validation_state import ValidationState
+from models.dataset_model import DatasetTableModel
+from models.inference_model import InferenceModel
+from models.validation_model import ValidationModel
+
+from controllers.io_controller import IOController
+from controllers.inference_controller import InferenceController
+from controllers.validation_controller import ValidationController
+
+from views.annomate.window import ImageAnnotator
+from views.microsentry.window import MicroSentryWindow
+from views.validation.window import ValidationWindow
 
 
 class AppWindow(QMainWindow):
-    """
-    Main application window hosting the AnnoMate, MicroSentryAI, and Validation tabs.
-    Handles all cross-tab synchronization.
-    """
-    
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AnnoMate with MicroSentryAI + Validation")
-        
-        # Initialize UI Components
-        self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        self.setWindowTitle("AnnoMate & MicroSentryAI (MVC)")
+        self.resize(1400, 900)
 
-        self.annotator_tab = AnnotatorTab()
-        self.micro_sentry_tab = MicroSentryTab()
-        self.validation_tab = ValidationTab()
+        # Domain state
+        self.dataset_state    = DatasetState()
+        self.inference_state  = InferenceState()
+        self.validation_state = ValidationState()
 
-        self.tabs.addTab(self.annotator_tab, "AnnoMate")
-        self.tabs.addTab(self.micro_sentry_tab, "MicroSentryAI")
-        self.tabs.addTab(self.validation_tab, "Validation")
+        # Models
+        self.dataset_model    = DatasetTableModel(self.dataset_state)
+        self.inference_model  = InferenceModel(self.inference_state)
+        self.validation_model = ValidationModel(self.validation_state)
 
-        # Establish bidirectional signal/slot connections
-        self._setup_connections()
+        # Controllers
+        self.io_controller         = IOController(self.dataset_model)
+        self.inference_controller  = InferenceController(
+            self.dataset_model, self.inference_model
+        )
+        self.validation_controller = ValidationController(self.validation_model)
 
-    def _setup_connections(self):
-        """Hooks up all synchronization signals between tabs."""
-        # Folder Navigation
-        self.annotator_tab.folderChanged.connect(self.sync_annotator_to_sentry_folder)
-        self.micro_sentry_tab.folderLoaded.connect(self.sync_sentry_to_annotator_folder)
-
-        # Index Navigation
-        self.annotator_tab.indexChanged.connect(self.sync_annotator_to_sentry_index)
-        self.micro_sentry_tab._host.imageIndexChanged.connect(self.sync_sentry_to_annotator_index)
-
-        # Polygon Transfer
-        self.micro_sentry_tab._host.polygonsSent.connect(self.handle_polygon_transfer)
-
-        # Viewport Sync
-        self.micro_sentry_tab._host.viewChanged.connect(self.sync_view_sentry_to_annotator)
-        if hasattr(self.annotator_tab._host, "viewChanged"):
-            self.annotator_tab._host.viewChanged.connect(self.sync_view_annotator_to_sentry)
-
-    # =========================================================================
-    # Synchronization Slots
-    # =========================================================================
-
-    def sync_annotator_to_sentry_folder(self, folder: str, abs_files: List[str]):
-        """Updates MicroSentry when the Annotator folder changes."""
-        self.micro_sentry_tab.open_image_folder(folder, absolute_files=abs_files)
-        self.micro_sentry_tab.set_index(0)
-
-    def sync_sentry_to_annotator_folder(self, folder: str, abs_files: List[str]):
-        """Updates Annotator when the MicroSentry folder changes."""
-        if hasattr(self.annotator_tab, "_host"):
-            self.annotator_tab._host.load_folder_programmatically(folder, abs_files)
-
-    def sync_annotator_to_sentry_index(self, idx: int, abs_path: str):
-        """Syncs MicroSentry index to match Annotator."""
-        self.micro_sentry_tab.set_index(idx)
-
-    def sync_sentry_to_annotator_index(self, idx: int):
-        """Syncs Annotator index to match MicroSentry."""
-        if self.annotator_tab._host.current_idx != idx:
-            self.annotator_tab._host.goto_index(idx)
-
-    def handle_polygon_transfer(self, polys: list, default_name: str):
-        """
-        Receives polygons from MicroSentry and prompts user to add them to AnnoMate.
-        """
-        host = self.annotator_tab._host
-        existing_classes = host.class_names
-        
-        items = existing_classes + ["New Class..."] if existing_classes else ["Anomaly", "New Class..."]
-
-        item, ok = QInputDialog.getItem(
-            self, 
-            "Export Polygons", 
-            "Select or Type Class Name:", 
-            items, 
-            0, 
-            True
+        # Views
+        self.annomate_view    = ImageAnnotator(self.dataset_model, self.io_controller)
+        self.sentry_view      = MicroSentryWindow(
+            self.dataset_model, self.inference_model, self.inference_controller
+        )
+        self.validation_view  = ValidationWindow(
+            self.validation_model, self.validation_controller
         )
 
-        if not ok or not item:
-            return
+        # Cross-tab row sync via selection signals (proxy models differ, so we
+        # use explicit signal connections rather than a shared QItemSelectionModel)
+        annomate_sel = self.annomate_view.table_view.selectionModel()
+        sentry_sel   = self.sentry_view.table_view.selectionModel()
+        annomate_sel.currentRowChanged.connect(
+            lambda c, _: sentry_sel.setCurrentIndex(
+                self.sentry_view._proxy.index(c.row(), 0),
+                sentry_sel.ClearAndSelect | sentry_sel.Rows,
+            )
+        )
+        sentry_sel.currentRowChanged.connect(
+            lambda c, _: annomate_sel.setCurrentIndex(
+                self.dataset_model.index(c.row(), 0),
+                annomate_sel.ClearAndSelect | annomate_sel.Rows,
+            )
+        )
 
-        class_name = item
-        chosen_color = None
+        # Polygon transfer: MicroSentry → AnnoMate
+        self.sentry_view.polygonsSent.connect(self._handle_polygon_transfer)
 
-        if item == "New Class...":
-            text, ok_new = QInputDialog.getText(self, "New Class", "Enter new class name:")
-            if ok_new and text:
-                class_name = text
-                color_dialog = QColorDialog.getColor(Qt.white, self, "Choose Class Color")
-                if color_dialog.isValid():
-                    chosen_color = color_dialog
-            else:
-                return  
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.annomate_view,   "AnnoMate")
+        self.tabs.addTab(self.sentry_view,     "MicroSentry AI")
+        self.tabs.addTab(self.validation_view, "Validation")
 
-        for poly in polys:
-            host.add_polygon_external(poly, class_name, color=chosen_color)
+        central_widget = QWidget()
+        layout = QVBoxLayout(central_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.tabs)
+        self.setCentralWidget(central_widget)
 
-    def sync_view_annotator_to_sentry(self, rx, ry, scale):
-        """Syncs MicroSentry view if it is not currently the active focus."""
-        if not self.micro_sentry_tab.isVisible():
-            self.micro_sentry_tab._host.set_view_state(rx, ry, scale)
+    def _handle_polygon_transfer(self, polygons: list, default_class: str):
+        """Show class-selection dialog then forward polygons to AnnoMate."""
+        class_names = self.dataset_model.get_class_names()
+        if not class_names:
+            class_names = [default_class]
 
-    def sync_view_sentry_to_annotator(self, rx, ry, scale):
-        """Syncs Annotator view to match MicroSentry."""
-        if hasattr(self.annotator_tab._host, "set_view_state"):
-            self.annotator_tab._host.set_view_state(rx, ry, scale)
+        chosen, ok = QInputDialog.getItem(
+            self, "Choose Class", "Assign polygons to class:",
+            class_names,
+            class_names.index(default_class) if default_class in class_names else 0,
+            False,
+        )
+        if ok and chosen:
+            self.annomate_view.receive_polygons(polygons, chosen)
 
 
 def main():
-    """
-    Initializes the PySide6 application and event loop.
-    """
-    # NOTE: In Qt6/PySide6, High DPI scaling is enabled by default. 
-    # The Qt.AA_EnableHighDpiScaling and Qt.AA_UseHighDpiPixmaps attributes 
-    # were completely removed from the framework, so these are commented out.
-    # QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    # QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-
     app = QApplication(sys.argv)
+    app.setStyle("Fusion")
     
-    main_window = AppWindow()
-    main_window.showMaximized()
-
-    sys.exit(app.exec()) # Changed from exec_() to exec()
-
+    window = AppWindow()
+    window.show()
+    
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()

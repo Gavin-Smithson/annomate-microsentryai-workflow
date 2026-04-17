@@ -119,6 +119,13 @@ class MicroSentryWindow(QWidget):
         self._block_history: bool = False
         self._worker = None
 
+        self._cached_heatmap_result = None  # (left_pil, right_pil, scale, offset, s, display_w, display_h)
+        self._cached_heatmap_params = None  # (alpha, sigma, display_target, heat_min_pct, image_path)
+        self._slider_timer = QTimer(self)
+        self._slider_timer.setSingleShot(True)
+        self._slider_timer.setInterval(40)
+        self._slider_timer.timeout.connect(self._render_current)
+
         self._init_ui()
         self._connect_signals()
         self._setup_shortcuts()
@@ -294,7 +301,7 @@ class MicroSentryWindow(QWidget):
         self.btn_prev.clicked.connect(self._prev_image)
         self.btn_next.clicked.connect(self._next_image)
 
-        self.slider.valueChanged.connect(lambda _: self._render_current())
+        self.slider.valueChanged.connect(self._on_slider_changed)
         self.display_spin.valueChanged.connect(lambda _: self._render_current())
         self.alpha_spin.valueChanged.connect(lambda _: self._render_current())
         self.heat_thresh_spin.valueChanged.connect(lambda _: self._render_current())
@@ -353,9 +360,34 @@ class MicroSentryWindow(QWidget):
             self.status_label.setText(f"Failed to load: {Path(path).name}")
             return
         self._current_pil = pil
+        self._invalidate_heatmap_cache()
         self._render_current()
         n = self.dataset_model.rowCount()
         self.status_label.setText(f"{Path(path).name}  ({row + 1} / {n})")
+
+    def _current_heatmap_params(self) -> tuple:
+        path = self.dataset_model.get_image_path(self._current_row)
+        return (
+            float(self.alpha_spin.value()),
+            float(self.sigma_spin.value()),
+            int(self.display_spin.value()),
+            int(self.heat_thresh_spin.value()),
+            path,
+        )
+
+    def _is_heatmap_cache_valid(self) -> bool:
+        return (
+            self._cached_heatmap_result is not None
+            and self._cached_heatmap_params == self._current_heatmap_params()
+        )
+
+    def _invalidate_heatmap_cache(self):
+        self._cached_heatmap_result = None
+        self._cached_heatmap_params = None
+
+    def _on_slider_changed(self, _):
+        self.slider_label.setText(f"Percentile Threshold: {self.slider.value():.1f}")
+        self._slider_timer.start()
 
     def _render_current(self):
         if self._current_pil is None or self._current_row < 0:
@@ -364,27 +396,53 @@ class MicroSentryWindow(QWidget):
         path = self.dataset_model.get_image_path(self._current_row)
         score_map = self.inference_model.get_score_map(path)
 
-        left_pil, right_pil, contours, scale, offset = (
-            self.inference_controller.compute_visualization(
-                pil_image=self._current_pil,
-                score_map=score_map,
-                alpha=float(self.alpha_spin.value()),
-                sigma=float(self.sigma_spin.value()),
-                display_target=int(self.display_spin.value()),
-                heat_min_pct=int(self.heat_thresh_spin.value()),
+        if self._is_heatmap_cache_valid():
+            left_pil, right_pil, scale, offset, s, display_w, display_h = (
+                self._cached_heatmap_result
+            )
+        else:
+            left_pil, right_pil, scale, offset, s = (
+                self.inference_controller.compute_heatmap(
+                    pil_image=self._current_pil,
+                    score_map=score_map,
+                    alpha=float(self.alpha_spin.value()),
+                    sigma=float(self.sigma_spin.value()),
+                    display_target=int(self.display_spin.value()),
+                    heat_min_pct=int(self.heat_thresh_spin.value()),
+                )
+            )
+            display_w, display_h = left_pil.size
+            self._cached_heatmap_result = (
+                left_pil, right_pil, scale, offset, s, display_w, display_h
+            )
+            self._cached_heatmap_params = self._current_heatmap_params()
+
+            contours = self.inference_controller.compute_segmentation(
+                smoothed_s=s,
                 seg_pct=int(self.slider.value()),
                 epsilon=float(self.eps_spin.value()),
+                display_w=display_w,
+                display_h=display_h,
             )
-        )
+            self._last_scale = scale
+            self._last_offset = offset
+            self.slider_label.setText(f"Percentile Threshold: {self.slider.value():.1f}")
+            self.canvas_pair.set_images(left_pil, right_pil, self._on_any_edit, contours)
+            QTimer.singleShot(50, self.canvas_pair.fit_views)
+            return
 
+        # Cache hit — only seg_pct changed; skip full heatmap recompute
+        contours = self.inference_controller.compute_segmentation(
+            smoothed_s=s,
+            seg_pct=int(self.slider.value()),
+            epsilon=float(self.eps_spin.value()),
+            display_w=display_w,
+            display_h=display_h,
+        )
         self._last_scale = scale
         self._last_offset = offset
-        self.slider_label.setText(
-            f"Percentile Threshold: {self.slider.value():.1f}"
-        )
-
-        self.canvas_pair.set_images(left_pil, right_pil, self._on_any_edit, contours)
-        QTimer.singleShot(50, self.canvas_pair.fit_views)
+        self.slider_label.setText(f"Percentile Threshold: {self.slider.value():.1f}")
+        self.canvas_pair.set_polygons(contours, self._on_any_edit)
 
     # ------------------------------------------------------------------
     # Model loading
@@ -513,6 +571,7 @@ class MicroSentryWindow(QWidget):
 
         if self._current_row >= 0:
             if self.dataset_model.get_image_path(self._current_row) == path:
+                self._invalidate_heatmap_cache()
                 self._render_current()
 
     def _on_worker_finished(self):
