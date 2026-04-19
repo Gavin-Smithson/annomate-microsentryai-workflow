@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from core.validation_state import ValidationState
+from core.states.validation_state import ValidationState
 from models.validation_model import ValidationModel
 from controllers.validation_controller import ValidationController
 from views.validation.window import ValidationWindow

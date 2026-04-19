@@ -19,8 +19,8 @@ import numpy as np
 
 from PySide6.QtCore import QThread, Signal
 
-from core.mask_comparator import MaskComparator
-from core.comparison_logger import write_log_header, log_results, log_skip
+from core.logic.mask_comparator import MaskComparator
+from core.logic.comparison_logger import write_log_header, log_results, log_skip
 from models.validation_model import ValidationModel
 
 logger = logging.getLogger("Validation.Controller")

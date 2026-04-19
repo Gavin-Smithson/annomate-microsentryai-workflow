@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional
 
 from PIL import Image
 
-from core.utils import simplify_polygon, scale_polygon_about_center
+from core.utils.geometry import simplify_polygon, scale_polygon_about_center
 
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import (

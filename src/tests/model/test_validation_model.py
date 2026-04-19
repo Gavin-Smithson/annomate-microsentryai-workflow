@@ -1,6 +1,6 @@
 import pytest
 
-from core.validation_state import ValidationState
+from core.states.validation_state import ValidationState
 from models.validation_model import ValidationModel
 
 

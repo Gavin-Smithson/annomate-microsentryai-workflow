@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from core.validation_state import ValidationState
+from core.states.validation_state import ValidationState
 
 
 @pytest.fixture

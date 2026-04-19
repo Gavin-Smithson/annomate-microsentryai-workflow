@@ -19,7 +19,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-from core.constants import DEFAULT_CLASS_COLORS
+from core.utils.constants import DEFAULT_CLASS_COLORS
 
 logger = logging.getLogger("AnnoMate.IOController")
 

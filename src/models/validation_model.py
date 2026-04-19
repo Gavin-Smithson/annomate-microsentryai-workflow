@@ -6,7 +6,7 @@ Views must use this API instead of accessing ValidationState directly.
 No Qt dependencies.
 """
 
-from core.validation_state import ValidationState
+from core.states.validation_state import ValidationState
 
 
 class ValidationModel:

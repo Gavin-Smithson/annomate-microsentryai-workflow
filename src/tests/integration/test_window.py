@@ -1,5 +1,5 @@
 import pytest
-from core.dataset_state import DatasetState
+from core.states.dataset_state import DatasetState
 from models.dataset_model import DatasetTableModel
 from controllers.io_controller import IOController
 from views.annomate.window import ImageAnnotator

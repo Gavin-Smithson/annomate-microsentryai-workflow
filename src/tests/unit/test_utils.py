@@ -1,5 +1,5 @@
 import pytest
-from core.utils import polygon_area, polygon_bbox
+from core.utils.geometry import polygon_area, polygon_bbox
 
 
 class TestPolygonArea:

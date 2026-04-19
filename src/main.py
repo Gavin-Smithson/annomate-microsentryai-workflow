@@ -3,12 +3,12 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QTabWidget, QVBoxLayout, QWidget, QInputDialog,
 )
 
-from core.logger import setup_logging
+from core.utils.logger import setup_logging
 setup_logging()
 
-from core.dataset_state import DatasetState
-from core.inference_state import InferenceState
-from core.validation_state import ValidationState
+from core.states.dataset_state import DatasetState
+from core.states.inference_state import InferenceState
+from core.states.validation_state import ValidationState
 from models.dataset_model import DatasetTableModel
 from models.inference_model import InferenceModel
 from models.validation_model import ValidationModel

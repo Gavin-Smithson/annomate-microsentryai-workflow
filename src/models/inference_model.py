@@ -1,6 +1,6 @@
 import numpy as np
 
-from core.inference_state import InferenceState
+from core.states.inference_state import InferenceState
 
 
 class InferenceModel:

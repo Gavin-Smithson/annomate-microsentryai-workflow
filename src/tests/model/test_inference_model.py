@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from core.inference_state import InferenceState
+from core.states.inference_state import InferenceState
 from models.inference_model import InferenceModel
 
 

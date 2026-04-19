@@ -4,17 +4,17 @@ import logging
 def setup_logging():
     """Configures root logger for the application"""
     is_compiled = getattr(sys, 'frozen', False)
-    
+
     log_level = logging.CRITICAL if is_compiled else logging.DEBUG
     log_format = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
-    
+
     logging.basicConfig(
         level=log_level,
         format=log_format,
         datefmt="%H:%M:%S",
         stream=sys.stdout,
     )
-    
+
     logger = logging.getLogger("Annomate")
     if is_compiled:
         logger.debug("Application started in PRODUCTION mode.")

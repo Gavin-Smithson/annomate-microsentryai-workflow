@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from core.mask_comparator import MaskComparator
+from core.logic.mask_comparator import MaskComparator
 
 
 @pytest.fixture

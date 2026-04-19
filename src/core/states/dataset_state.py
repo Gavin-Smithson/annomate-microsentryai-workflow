@@ -1,4 +1,4 @@
-from core.constants import DEFAULT_CLASSES
+from core.utils.constants import DEFAULT_CLASSES
 
 
 class DatasetState:

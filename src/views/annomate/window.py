@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
-from core.utils import scale_polygon_about_center
+from core.utils.geometry import scale_polygon_about_center
 from views.annomate.image_label import ImageLabel, POLYGON
 from views.annomate.widgets import CustomSplitter
 
@@ -382,7 +382,7 @@ class ImageAnnotator(QMainWindow):
 
     def _pick_next_unique_color(self) -> tuple:
         """Return the first DEFAULT_CLASS_COLOR not already in use."""
-        from core.constants import DEFAULT_CLASS_COLORS
+        from core.utils.constants import DEFAULT_CLASS_COLORS
         # V2: model query; V4: already tuples
         used = set(self.model.get_used_class_colors())
         for cand in DEFAULT_CLASS_COLORS:
