@@ -11,7 +11,7 @@ from typing import List, Tuple, Optional
 import cv2
 import numpy as np
 
-from PySide6.QtCore import Qt, QPointF, QRect, QSize, Signal
+from PySide6.QtCore import Qt, QPointF, Signal
 from PySide6.QtGui import (
     QPainter,
     QPen,
@@ -59,10 +59,10 @@ class ImageLabel(QLabel):
         toolCanceled (): Emitted when ``Escape`` is pressed while a tool is active.
     """
 
-    polygonFinished = Signal(list)        # pts: List[Tuple[float, float]] in original coords
-    polygonEdited   = Signal(int, list)   # (polygon_idx, pts in original coords)
-    polygonSelected = Signal(int)         # polygon index (-1 for deselect)
-    toolCanceled    = Signal()            # Escape pressed while polygon tool active
+    polygonFinished = Signal(list)  # pts: List[Tuple[float, float]] in original coords
+    polygonEdited = Signal(int, list)  # (polygon_idx, pts in original coords)
+    polygonSelected = Signal(int)  # polygon index (-1 for deselect)
+    toolCanceled = Signal()  # Escape pressed while polygon tool active
 
     def __init__(self, parent: object = None) -> None:
         """Initialize ImageLabel with default zoom, pan, and annotation state.
@@ -120,8 +120,7 @@ class ImageLabel(QLabel):
         h, w = bgr.shape[:2]
 
         self._base_scale = (
-            1.0 if max(h, w) <= max_display_dim
-            else max_display_dim / float(max(h, w))
+            1.0 if max(h, w) <= max_display_dim else max_display_dim / float(max(h, w))
         )
 
         self._zoom = 1.0
@@ -130,18 +129,12 @@ class ImageLabel(QLabel):
         new_w = int(w * self._base_scale)
         new_h = int(h * self._base_scale)
 
-        resized_bgr = cv2.resize(
-            bgr, (new_w, new_h), interpolation=cv2.INTER_AREA
-        )
+        resized_bgr = cv2.resize(bgr, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
         rgb = cv2.cvtColor(resized_bgr, cv2.COLOR_BGR2RGB)
 
         qimg = QImage(
-            rgb.data,
-            rgb.shape[1],
-            rgb.shape[0],
-            rgb.strides[0],
-            QImage.Format_RGB888
+            rgb.data, rgb.shape[1], rgb.shape[0], rgb.strides[0], QImage.Format_RGB888
         )
         self._display_qpix = QPixmap.fromImage(qimg)
 
@@ -173,7 +166,9 @@ class ImageLabel(QLabel):
         """
         self._active_color = color if isinstance(color, QColor) else QColor(0, 200, 0)
 
-    def set_overlays(self, poly_list: List[Tuple[List[Tuple[float, float]], QColor]]) -> None:
+    def set_overlays(
+        self, poly_list: List[Tuple[List[Tuple[float, float]], QColor]]
+    ) -> None:
         """Replace all rendered overlay polygons.
 
         Converts each polygon from original image coordinates to display
@@ -220,7 +215,7 @@ class ImageLabel(QLabel):
         """
         return QPointF(
             (p_view.x() - self._pan.x()) / self._zoom,
-            (p_view.y() - self._pan.y()) / self._zoom
+            (p_view.y() - self._pan.y()) / self._zoom,
         )
 
     def display_to_original(self, p_disp: QPointF) -> Tuple[float, float]:
@@ -284,7 +279,7 @@ class ImageLabel(QLabel):
             self.finish_current_polygon()
             return
 
-         # --- Double Click to Edit ---
+        # --- Double Click to Edit ---
         if event.button() == Qt.LeftButton:
             pos_disp = self.view_to_display(QPointF(event.pos()))
             found_idx = -1
@@ -336,14 +331,17 @@ class ImageLabel(QLabel):
             if self.editing_polygon_idx != -1:
                 pts, _ = self._overlays[self.editing_polygon_idx]
                 closest_idx = -1
-                min_dist = float('inf')
+                min_dist = float("inf")
 
                 for i, p_disp in enumerate(pts):
                     p_view = QPointF(
                         p_disp.x() * self._zoom + self._pan.x(),
-                        p_disp.y() * self._zoom + self._pan.y()
+                        p_disp.y() * self._zoom + self._pan.y(),
                     )
-                    dist = ((p_view.x() - pos_view.x())**2 + (p_view.y() - pos_view.y())**2)**0.5
+                    dist = (
+                        (p_view.x() - pos_view.x()) ** 2
+                        + (p_view.y() - pos_view.y()) ** 2
+                    ) ** 0.5
                     if dist < 10.0 and dist < min_dist:
                         min_dist = dist
                         closest_idx = i
@@ -369,7 +367,9 @@ class ImageLabel(QLabel):
                     self.polygonSelected.emit(found_idx)
 
                 # Unconditionally add the point instead of checking for proximity to the first point
-                self.current_polygon_points.append(self.view_to_display(QPointF(event.pos())))
+                self.current_polygon_points.append(
+                    self.view_to_display(QPointF(event.pos()))
+                )
                 self.update()
                 return
 
@@ -402,13 +402,21 @@ class ImageLabel(QLabel):
             return
 
         # --- Drag entire polygon ---
-        if self._dragging_polygon and self.selected_polygon_idx != -1 and self._last_mouse_pos is not None:
+        if (
+            self._dragging_polygon
+            and self.selected_polygon_idx != -1
+            and self._last_mouse_pos is not None
+        ):
             delta_view = self._mouse_pos - self._last_mouse_pos
-            delta_disp = QPointF(delta_view.x() / self._zoom, delta_view.y() / self._zoom)
+            delta_disp = QPointF(
+                delta_view.x() / self._zoom, delta_view.y() / self._zoom
+            )
 
             pts, _ = self._overlays[self.selected_polygon_idx]
             for i in range(len(pts)):
-                pts[i] = QPointF(pts[i].x() + delta_disp.x(), pts[i].y() + delta_disp.y())
+                pts[i] = QPointF(
+                    pts[i].x() + delta_disp.x(), pts[i].y() + delta_disp.y()
+                )
 
             self._last_mouse_pos = self._mouse_pos
             self.update()
@@ -425,15 +433,22 @@ class ImageLabel(QLabel):
             self.update()
             return
 
-        if self.editing_polygon_idx != -1 and not self._dragging_polygon and not self._panning:
+        if (
+            self.editing_polygon_idx != -1
+            and not self._dragging_polygon
+            and not self._panning
+        ):
             pts, _ = self._overlays[self.editing_polygon_idx]
             hovering = False
             for p_disp in pts:
                 p_view = QPointF(
                     p_disp.x() * self._zoom + self._pan.x(),
-                    p_disp.y() * self._zoom + self._pan.y()
+                    p_disp.y() * self._zoom + self._pan.y(),
                 )
-                dist = ((p_view.x() - self._mouse_pos.x())**2 + (p_view.y() - self._mouse_pos.y())**2)**0.5
+                dist = (
+                    (p_view.x() - self._mouse_pos.x()) ** 2
+                    + (p_view.y() - self._mouse_pos.y()) ** 2
+                ) ** 0.5
                 if dist < 10.0:
                     hovering = True
                     break
@@ -494,8 +509,8 @@ class ImageLabel(QLabel):
             return
 
         steps = delta / 120.0
-        steps = max(-5.0, min(5.0, steps)) # Clamp extreme inputs
-        factor = 1.15 ** steps
+        steps = max(-5.0, min(5.0, steps))  # Clamp extreme inputs
+        factor = 1.15**steps
 
         cursor_pos = event.position()
         point_in_disp = self.view_to_display(cursor_pos)
@@ -543,7 +558,7 @@ class ImageLabel(QLabel):
 
         self._pan = QPointF(
             center.x() - point_in_disp.x() * self._zoom,
-            center.y() - point_in_disp.y() * self._zoom
+            center.y() - point_in_disp.y() * self._zoom,
         )
         self.update()
 
@@ -568,12 +583,14 @@ class ImageLabel(QLabel):
         # Draw Overlays with Selection Highlighting
         for i, (pts, color) in enumerate(self._overlays):
             if len(pts) >= 2:
-                is_selected = (i == self.selected_polygon_idx)
-                pen = QPen(color, 4 if is_selected else 2) # Thicker if selected
-                alpha = 150 if is_selected else 60         # Darker fill if selected
+                is_selected = i == self.selected_polygon_idx
+                pen = QPen(color, 4 if is_selected else 2)  # Thicker if selected
+                alpha = 150 if is_selected else 60  # Darker fill if selected
 
                 painter.setPen(pen)
-                painter.setBrush(QBrush(QColor(color.red(), color.green(), color.blue(), alpha)))
+                painter.setBrush(
+                    QBrush(QColor(color.red(), color.green(), color.blue(), alpha))
+                )
                 painter.drawPolygon(QPolygonF(pts + [pts[0]]))
 
                 if i == self.editing_polygon_idx:

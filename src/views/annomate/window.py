@@ -16,10 +16,23 @@ import os
 from pathlib import Path
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QComboBox, QLineEdit, QTextEdit,
-    QScrollArea, QTableView, QHeaderView, QAbstractItemView,
-    QListWidget, QColorDialog, QFileDialog, QMessageBox,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QComboBox,
+    QLineEdit,
+    QTextEdit,
+    QScrollArea,
+    QTableView,
+    QHeaderView,
+    QAbstractItemView,
+    QListWidget,
+    QColorDialog,
+    QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -49,8 +62,10 @@ class ImageAnnotator(QMainWindow):
             for cross-tab sync.
     """
 
-    viewChanged           = Signal(float, float, float)  # reserved for future multi-tab sync
-    row_selection_changed = Signal(int)                  # emitted when the current row changes (for cross-tab sync)
+    viewChanged = Signal(float, float, float)  # reserved for future multi-tab sync
+    row_selection_changed = Signal(
+        int
+    )  # emitted when the current row changes (for cross-tab sync)
 
     def __init__(self, model, io_controller) -> None:
         """Initialize ImageAnnotator and build the UI.
@@ -62,7 +77,7 @@ class ImageAnnotator(QMainWindow):
         super().__init__()
         self.model = model
         self.io_controller = io_controller
-        self._syncing = False   # guard against recursive cross-tab row sync
+        self._syncing = False  # guard against recursive cross-tab row sync
 
         self._init_ui()
         self._setup_connections()
@@ -151,7 +166,12 @@ class ImageAnnotator(QMainWindow):
         self.btn_poly.setCheckable(True)
         self.btn_poly.setShortcut("P")
         self.btn_poly.toggled.connect(self._on_polygon_tool_toggled)
-        for w in (self.btn_zoom_in, self.btn_zoom_out, self.btn_reset_view, self.btn_poly):
+        for w in (
+            self.btn_zoom_in,
+            self.btn_zoom_out,
+            self.btn_reset_view,
+            self.btn_poly,
+        ):
             bar.addWidget(w)
         self.side_layout.addLayout(bar)
 
@@ -326,7 +346,7 @@ class ImageAnnotator(QMainWindow):
         # V3: disk I/O delegated to controller
         bgr = self.io_controller.load_image_for_display(row)
         if bgr is not None:
-            self.canvas.set_image(bgr)      # V3: canvas receives data, not a path
+            self.canvas.set_image(bgr)  # V3: canvas receives data, not a path
             self.refresh_image_view(row)
             self.refresh_meta_fields(row)
 
@@ -339,7 +359,9 @@ class ImageAnnotator(QMainWindow):
         sel = self.table_view.selectionModel()
         if not sel.hasSelection():
             return
-        self.table_view.selectRow(min(sel.currentIndex().row() + 1, self.model.rowCount() - 1))
+        self.table_view.selectRow(
+            min(sel.currentIndex().row() + 1, self.model.rowCount() - 1)
+        )
 
     def prev_image(self) -> None:
         """Move the selection to the previous row, clamped at row 0."""
@@ -454,7 +476,7 @@ class ImageAnnotator(QMainWindow):
         name = self.class_name_edit.text().strip()
         if not name:
             return
-        color = self._pick_next_unique_color()   # returns a tuple
+        color = self._pick_next_unique_color()  # returns a tuple
         if self.model.add_class(name, color):
             self.class_combo.addItem(name)
             self.class_combo.setCurrentText(name)
@@ -501,6 +523,7 @@ class ImageAnnotator(QMainWindow):
                 class registry, or ``DEFAULT_CLASS_COLORS[0]`` as a fallback.
         """
         from core.utils.constants import DEFAULT_CLASS_COLORS
+
         # V2: model query; V4: already tuples
         used = set(self.model.get_used_class_colors())
         for cand in DEFAULT_CLASS_COLORS:
@@ -526,14 +549,18 @@ class ImageAnnotator(QMainWindow):
         sel = self.table_view.selectionModel()
         if not sel.hasSelection():
             return
-        self.model.set_inspector(sel.currentIndex().row(), self.inspector_edit.text().strip())
+        self.model.set_inspector(
+            sel.currentIndex().row(), self.inspector_edit.text().strip()
+        )
 
     def _store_note(self) -> None:
         """Write the note text-area value to the model for the current row."""
         sel = self.table_view.selectionModel()
         if not sel.hasSelection():
             return
-        self.model.set_note(sel.currentIndex().row(), self.note_edit.toPlainText().strip())
+        self.model.set_note(
+            sel.currentIndex().row(), self.note_edit.toPlainText().strip()
+        )
 
     def refresh_meta_fields(self, row: int) -> None:
         """Populate inspector and note fields from the model for *row*.
@@ -569,7 +596,9 @@ class ImageAnnotator(QMainWindow):
             return
         selected_items = self.ann_list.selectedIndexes()
         if selected_items:
-            self.model.delete_annotation(sel.currentIndex().row(), selected_items[0].row())
+            self.model.delete_annotation(
+                sel.currentIndex().row(), selected_items[0].row()
+            )
 
     def sort_by_area(self) -> None:
         """Sort the current image's annotations by polygon area descending."""
@@ -620,8 +649,14 @@ class ImageAnnotator(QMainWindow):
             QMessageBox.critical(self, "Import Error", str(e))
             return
 
-        # Re-sync class combo after import (class list may have changed)
-        # V2: model query
+        self.refresh_class_combo()
+
+    def refresh_class_combo(self) -> None:
+        """Re-populate the class combo box from the model.
+
+        Called after any external operation that may change the class
+        registry (project open, COCO import, etc.).
+        """
         self.class_combo.blockSignals(True)
         self.class_combo.clear()
         self.class_combo.addItems(self.model.get_class_names())

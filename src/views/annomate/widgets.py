@@ -54,7 +54,7 @@ class SidebarHandle(QSplitterHandle):
             splitter.setSizes([main_width + side_width, 0])
         else:
             # EXPAND: Restore last known width or default to 400
-            last_width = getattr(splitter, '_last_side_width', 400)
+            last_width = getattr(splitter, "_last_side_width", 400)
             if last_width == 0:
                 last_width = 400
 

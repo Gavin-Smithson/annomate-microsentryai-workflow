@@ -17,3 +17,5 @@ dependencies:
       - matplotlib>=3.7.0
       - pillow>=10.0.0
       - pyinstaller
+      - pre-commit
+      - ruff
