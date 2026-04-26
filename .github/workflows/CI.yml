@@ -72,8 +72,6 @@ jobs:
 
       - name: Install Headless Display Dependencies (Linux only)
         if: runner.os == 'Linux'
-        - name: Install Headless Display Dependencies (Linux only)
-        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
