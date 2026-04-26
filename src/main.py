@@ -5,9 +5,6 @@ Creates all layers in dependency order (states → models → controllers → vi
 and starts the Qt event loop. Contains no UI code.
 """
 
-
-# I AM STILL TESTING LINUX BUGS, MORE BUGS
-
 import sys
 from PySide6.QtWidgets import (
     QApplication,
