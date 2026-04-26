@@ -135,6 +135,7 @@ class InferenceController(QObject):
         self._strategy_class = strategy_class
         self._strategy = None
         self._worker: Optional[InferenceWorker] = None
+        self._model_path: str = ""
 
     # ------------------------------------------------------------------ #
     # Model management
@@ -163,16 +164,17 @@ class InferenceController(QObject):
         strategy.set_device(device.lower())
         strategy.load_from_file(model_path)  # raises on failure
         self._strategy = strategy
+        self._model_path = model_path
         logger.info("Model loaded: %s", strategy.model_name)
         return strategy.model_name
 
     def get_model_name(self) -> str:
-        """Return the name of the currently loaded model.
-
-        Returns:
-            str: Model name string, or an empty string if no model is loaded.
-        """
+        """Return the name of the currently loaded model, or empty string."""
         return self._strategy.model_name if self._strategy else ""
+
+    def get_model_path(self) -> str:
+        """Return the file path of the currently loaded model, or empty string."""
+        return self._model_path
 
     def has_model(self) -> bool:
         """Check whether a model has been successfully loaded.

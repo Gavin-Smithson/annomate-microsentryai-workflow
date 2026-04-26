@@ -620,8 +620,14 @@ class ImageAnnotator(QMainWindow):
             QMessageBox.critical(self, "Import Error", str(e))
             return
 
-        # Re-sync class combo after import (class list may have changed)
-        # V2: model query
+        self.refresh_class_combo()
+
+    def refresh_class_combo(self) -> None:
+        """Re-populate the class combo box from the model.
+
+        Called after any external operation that may change the class
+        registry (project open, COCO import, etc.).
+        """
         self.class_combo.blockSignals(True)
         self.class_combo.clear()
         self.class_combo.addItems(self.model.get_class_names())

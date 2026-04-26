@@ -8,6 +8,7 @@ No Qt dependencies.
 
 import os
 import io
+import time
 import pickle
 import pathlib
 import logging
@@ -285,6 +286,8 @@ class AnomalibStrategy:
         self.torch_inferencer = None
         self.raw_model = None
 
+        t_total = time.perf_counter()
+
         try:
             os.environ["TRUST_REMOTE_CODE"] = "1"
 
@@ -308,14 +311,22 @@ class AnomalibStrategy:
 
                     if resolved_device == "mps":
                         logger.debug("Applying MPS shim: initialising on CPU first.")
+                        t_inferencer = time.perf_counter()
                         self.torch_inferencer = TorchInferencer(path=path, device="cpu")
+                        logger.info("Load phase: TorchInferencer init — %.2fs", time.perf_counter() - t_inferencer)
+
+                        t_mps = time.perf_counter()
                         mps_device = torch.device("mps")
                         if hasattr(self.torch_inferencer, "model"):
                             self.torch_inferencer.model = self.torch_inferencer.model.to(mps_device)
                         self.torch_inferencer.device = mps_device
+                        logger.info("Load phase: MPS device move — %.2fs", time.perf_counter() - t_mps)
+
                         final_device = "MPS (Apple Silicon)"
                     else:
+                        t_inferencer = time.perf_counter()
                         self.torch_inferencer = TorchInferencer(path=path, device=resolved_device)
+                        logger.info("Load phase: TorchInferencer init — %.2fs", time.perf_counter() - t_inferencer)
 
                     self.model_name = f"Anomalib (Torch) [{final_device}]"
                     logger.info("Loaded %s via TorchInferencer", self.model_name)
@@ -330,7 +341,9 @@ class AnomalibStrategy:
                 self.torch_inferencer = None
 
                 device_obj = torch.device(resolved_device if resolved_device != "mps" else "cpu")
+                t_raw = time.perf_counter()
                 loaded_data = torch.load(path, map_location=device_obj, pickle_module=DynamicPickleModule)
+                logger.info("Load phase: raw torch.load — %.2fs", time.perf_counter() - t_raw)
 
                 if isinstance(loaded_data, dict):
                     if "state_dict" in loaded_data and "model" not in loaded_data:
@@ -350,13 +363,17 @@ class AnomalibStrategy:
 
                 if resolved_device == "mps":
                     try:
+                        t_mps = time.perf_counter()
                         self.raw_model = self.raw_model.to(torch.device("mps"))
+                        logger.info("Load phase: MPS device move — %.2fs", time.perf_counter() - t_mps)
                         final_device = "MPS (Apple Silicon)"
                     except Exception as mps_err:
                         logger.debug("Failed to push raw model to MPS: %s", mps_err)
 
                 self.model_name = f"Raw PyTorch Model [{final_device}]"
                 logger.info("Loaded %s via raw torch.load", self.model_name)
+
+            logger.info("Load total — %.2fs", time.perf_counter() - t_total)
 
         except Exception as e:
             logger.error("Critical failure loading model: %s", e)
