@@ -6,7 +6,7 @@ and starts the Qt event loop. Contains no UI code.
 """
 
 
-# I AM STILL TESTING
+# I AM STILL TESTING LINUX BUGS
 
 import sys
 from PySide6.QtWidgets import (
