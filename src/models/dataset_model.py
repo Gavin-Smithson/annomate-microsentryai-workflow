@@ -10,6 +10,7 @@ from core.utils.geometry import polygon_area
 
 logger = logging.getLogger("AnnoMate.DatasetModel")
 
+
 class DatasetTableModel(QAbstractTableModel):
     """Qt model layer for the dataset image list.
 
@@ -62,7 +63,9 @@ class DatasetTableModel(QAbstractTableModel):
         """
         return len(self.headers)
 
-    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> object:
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole
+    ) -> object:
         """Return header label for the given section and orientation.
 
         Args:
@@ -154,7 +157,12 @@ class DatasetTableModel(QAbstractTableModel):
             return
 
         filename = self.state.image_files[row]
-        logger.debug("Adding '%s' annotation to '%s' (%d points)", category, filename, len(polygon))
+        logger.debug(
+            "Adding '%s' annotation to '%s' (%d points)",
+            category,
+            filename,
+            len(polygon),
+        )
 
         self.state.add_annotation(filename, category, polygon)
         self._emit_row(row)
@@ -174,12 +182,16 @@ class DatasetTableModel(QAbstractTableModel):
             return
 
         filename = self.state.image_files[row]
-        logger.debug("Deleted annotation at index %d from '%s'", annotation_idx, filename)
+        logger.debug(
+            "Deleted annotation at index %d from '%s'", annotation_idx, filename
+        )
 
         self.state.delete_annotation(self.state.image_files[row], annotation_idx)
         self._emit_row(row)
 
-    def update_annotation_points(self, row: int, annotation_idx: int, points: list) -> None:
+    def update_annotation_points(
+        self, row: int, annotation_idx: int, points: list
+    ) -> None:
         """Replace the polygon vertices of an existing annotation.
 
         Out-of-bounds *row* values are silently ignored. Emits
@@ -193,7 +205,9 @@ class DatasetTableModel(QAbstractTableModel):
         """
         if not (0 <= row < self.rowCount()):
             return
-        self.state.update_annotation_points(self.state.image_files[row], annotation_idx, points)
+        self.state.update_annotation_points(
+            self.state.image_files[row], annotation_idx, points
+        )
         self._emit_row(row)
 
     def set_inspector(self, row: int, value: str) -> None:

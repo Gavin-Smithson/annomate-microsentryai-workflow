@@ -13,16 +13,36 @@ from typing import Optional, List
 from PIL import Image
 
 from PySide6.QtCore import (
-    Qt, Signal, QTimer, QModelIndex, QIdentityProxyModel,
+    Qt,
+    Signal,
+    QTimer,
+    QModelIndex,
+    QIdentityProxyModel,
 )
 from PySide6.QtGui import (
-    QBrush, QColor, QKeySequence, QShortcut,
+    QBrush,
+    QColor,
+    QKeySequence,
+    QShortcut,
 )
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QFileDialog, QMessageBox,
-    QHBoxLayout, QVBoxLayout, QSlider, QSpinBox, QDoubleSpinBox,
-    QProgressBar, QHeaderView, QAbstractItemView, QTableView,
-    QInputDialog, QSplitter, QApplication,
+    QWidget,
+    QLabel,
+    QPushButton,
+    QFileDialog,
+    QMessageBox,
+    QHBoxLayout,
+    QVBoxLayout,
+    QSlider,
+    QSpinBox,
+    QDoubleSpinBox,
+    QProgressBar,
+    QHeaderView,
+    QAbstractItemView,
+    QTableView,
+    QInputDialog,
+    QSplitter,
+    QApplication,
 )
 
 from models.dataset_model import DatasetTableModel
@@ -37,6 +57,7 @@ logger = logging.getLogger("MicroSentryAI.Window")
 # ---------------------------------------------------------------------------
 # Proxy — overrides col-1 to show inference status instead of review status
 # ---------------------------------------------------------------------------
+
 
 class _InferenceStatusProxy(QIdentityProxyModel):
     """Proxy model that overrides column 1 to show per-image inference status.
@@ -116,6 +137,7 @@ class _InferenceStatusProxy(QIdentityProxyModel):
 # MicroSentryWindow
 # ---------------------------------------------------------------------------
 
+
 class MicroSentryWindow(QWidget):
     """MVC view for the MicroSentryAI anomaly-detection pane.
 
@@ -147,9 +169,9 @@ class MicroSentryWindow(QWidget):
             for cross-tab sync.
     """
 
-    polygonsSent          = Signal(list, str)           # (polygons in original coords, default class)
-    viewChanged           = Signal(float, float, float) # rx, ry, scale — cross-tab pan/zoom sync
-    row_selection_changed = Signal(int)                 # emitted when the current row changes
+    polygonsSent = Signal(list, str)  # (polygons in original coords, default class)
+    viewChanged = Signal(float, float, float)  # rx, ry, scale — cross-tab pan/zoom sync
+    row_selection_changed = Signal(int)  # emitted when the current row changes
 
     def __init__(
         self,
@@ -185,8 +207,12 @@ class MicroSentryWindow(QWidget):
         self._redo_stack: List[list] = []
         self._block_history: bool = False
 
-        self._cached_heatmap_result = None  # (left_pil, right_pil, scale, offset, s, display_w, display_h)
-        self._cached_heatmap_params = None  # (alpha, sigma, display_target, heat_min_pct, image_path)
+        self._cached_heatmap_result = (
+            None  # (left_pil, right_pil, scale, offset, s, display_w, display_h)
+        )
+        self._cached_heatmap_params = (
+            None  # (alpha, sigma, display_target, heat_min_pct, image_path)
+        )
         self._slider_timer = QTimer(self)
         self._slider_timer.setSingleShot(True)
         self._slider_timer.setInterval(40)
@@ -301,8 +327,8 @@ class MicroSentryWindow(QWidget):
         self.eps_spin.setDecimals(1)
         self.eps_spin.setValue(1.5)
 
-        self.btn_simpl_sel  = QPushButton("Simplify Selected")
-        self.btn_simpl_all  = QPushButton("Simplify All")
+        self.btn_simpl_sel = QPushButton("Simplify Selected")
+        self.btn_simpl_all = QPushButton("Simplify All")
         self.btn_load_model = QPushButton("Load Model")
         self.btn_load_images = QPushButton("Load Image Folder")
         self.btn_send_annot = QPushButton("Send to AnnoMate")
@@ -374,9 +400,7 @@ class MicroSentryWindow(QWidget):
         self.table_view.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
         )
-        self.table_view.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.Stretch
-        )
+        self.table_view.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.table_view.verticalHeader().setVisible(False)
         self.table_view.setAlternatingRowColors(True)
         self.table_view.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -405,9 +429,7 @@ class MicroSentryWindow(QWidget):
         self.btn_simpl_sel.clicked.connect(self._simplify_selected)
         self.btn_simpl_all.clicked.connect(self._simplify_all)
 
-        self.table_view.selectionModel().currentRowChanged.connect(
-            self._on_row_changed
-        )
+        self.table_view.selectionModel().currentRowChanged.connect(self._on_row_changed)
 
         self.canvas_pair.view_left.viewChanged.connect(
             lambda rx, ry, s: self.viewChanged.emit(rx, ry, s)
@@ -417,7 +439,7 @@ class MicroSentryWindow(QWidget):
         """Register Ctrl+Z (undo), Ctrl+Y (redo), and S (simplify) keyboard shortcuts."""
         QShortcut(QKeySequence("Ctrl+Z"), self).activated.connect(self._undo)
         QShortcut(QKeySequence("Ctrl+Y"), self).activated.connect(self._redo)
-        QShortcut(QKeySequence("S"),      self).activated.connect(self._simplify_selected)
+        QShortcut(QKeySequence("S"), self).activated.connect(self._simplify_selected)
 
     # ------------------------------------------------------------------
     # Row navigation
@@ -564,7 +586,13 @@ class MicroSentryWindow(QWidget):
             )
             display_w, display_h = left_pil.size
             self._cached_heatmap_result = (
-                left_pil, right_pil, scale, offset, s, display_w, display_h
+                left_pil,
+                right_pil,
+                scale,
+                offset,
+                s,
+                display_w,
+                display_h,
             )
             self._cached_heatmap_params = self._current_heatmap_params()
 
@@ -577,8 +605,12 @@ class MicroSentryWindow(QWidget):
             )
             self._last_scale = scale
             self._last_offset = offset
-            self.slider_label.setText(f"Percentile Threshold: {self.slider.value():.1f}")
-            self.canvas_pair.set_images(left_pil, right_pil, self._on_any_edit, contours)
+            self.slider_label.setText(
+                f"Percentile Threshold: {self.slider.value():.1f}"
+            )
+            self.canvas_pair.set_images(
+                left_pil, right_pil, self._on_any_edit, contours
+            )
             QTimer.singleShot(50, self.canvas_pair.fit_views)
             return
 
@@ -608,8 +640,12 @@ class MicroSentryWindow(QWidget):
             return
 
         device, ok = QInputDialog.getItem(
-            self, "Select Device", "Inference Hardware:",
-            ["auto", "cpu", "cuda", "mps"], 0, False,
+            self,
+            "Select Device",
+            "Inference Hardware:",
+            ["auto", "cpu", "cuda", "mps"],
+            0,
+            False,
         )
         if not ok:
             return
@@ -627,7 +663,8 @@ class MicroSentryWindow(QWidget):
         self.model_label.setText(f"Active: {model_name}")
         self.model_label.setStyleSheet("font-weight: bold; color: #538A3F;")
         QMessageBox.information(
-            self, "Model Loaded",
+            self,
+            "Model Loaded",
             f"Model loaded successfully.\n\nDetails: {model_name}",
         )
 
@@ -672,10 +709,7 @@ class MicroSentryWindow(QWidget):
         self.inference_model.clear()
         self._proxy.refresh_status_column()
 
-        if (
-            self.dataset_model.rowCount() > 0
-            and self.inference_controller.has_model()
-        ):
+        if self.dataset_model.rowCount() > 0 and self.inference_controller.has_model():
             self._start_background_inference()
 
     # ------------------------------------------------------------------
@@ -773,7 +807,9 @@ class MicroSentryWindow(QWidget):
             current = self.canvas_pair.serialize_polygons()
             prior = self._undo_stack.pop()
             self._redo_stack.append(current)
-            self.canvas_pair.restore_polygons(prior, self._current_pil, self._on_any_edit)
+            self.canvas_pair.restore_polygons(
+                prior, self._current_pil, self._on_any_edit
+            )
         finally:
             self._block_history = False
 
@@ -849,7 +885,8 @@ class MicroSentryWindow(QWidget):
         before emitting.
         """
         selected = [
-            i for i in self.canvas_pair.scene_left.selectedItems()
+            i
+            for i in self.canvas_pair.scene_left.selectedItems()
             if isinstance(i, SegPathItem)
         ]
         if selected:

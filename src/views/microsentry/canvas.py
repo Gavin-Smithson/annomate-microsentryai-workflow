@@ -14,13 +14,22 @@ from core.utils.geometry import simplify_polygon, scale_polygon_about_center
 
 from PySide6.QtCore import Qt, QPointF, QRectF, Signal
 from PySide6.QtGui import (
-    QPen, QBrush, QColor, QPainterPath,
-    QImage, QPixmap,
+    QPen,
+    QBrush,
+    QColor,
+    QPainterPath,
+    QImage,
+    QPixmap,
 )
 from PySide6.QtWidgets import (
-    QWidget, QGridLayout, QLabel,
-    QGraphicsView, QGraphicsScene,
-    QGraphicsPixmapItem, QGraphicsPathItem, QGraphicsEllipseItem,
+    QWidget,
+    QGridLayout,
+    QLabel,
+    QGraphicsView,
+    QGraphicsScene,
+    QGraphicsPixmapItem,
+    QGraphicsPathItem,
+    QGraphicsEllipseItem,
 )
 
 logger = logging.getLogger("MicroSentryAI.Canvas")
@@ -31,6 +40,7 @@ HANDLE_RADIUS = 4.0
 # ---------------------------------------------------------------------------
 # Graphics primitives
 # ---------------------------------------------------------------------------
+
 
 class VertexHandle(QGraphicsEllipseItem):
     """Draggable ellipse handle for a single polygon vertex in the MicroSentryAI canvas.
@@ -160,8 +170,10 @@ class SegPathItem(QGraphicsPathItem):
                 ``"polygon_simplify"``, or ``"polygon_scale"``.
         """
         super().__init__()
-        self.setFlags(QGraphicsPathItem.ItemIsMovable | QGraphicsPathItem.ItemIsSelectable)
-        self.pen_normal   = QPen(QColor(0, 255, 0), 2)
+        self.setFlags(
+            QGraphicsPathItem.ItemIsMovable | QGraphicsPathItem.ItemIsSelectable
+        )
+        self.pen_normal = QPen(QColor(0, 255, 0), 2)
         self.pen_selected = QPen(QColor(255, 235, 59), 2)
 
         self.handles: List[VertexHandle] = []
@@ -326,7 +338,7 @@ class SyncedGraphicsView(QGraphicsView):
             ``(rx, ry)`` and absolute scale when the viewport changes.
     """
 
-    viewChanged = Signal(float, float, float)   # rx, ry, scale
+    viewChanged = Signal(float, float, float)  # rx, ry, scale
 
     def __init__(self, scene: QGraphicsScene, parent: QWidget = None) -> None:
         """Initialize the view, configure drag/anchor modes, and wire scroll bars.
@@ -369,7 +381,7 @@ class SyncedGraphicsView(QGraphicsView):
         if delta == 0:
             return
         steps = max(-5.0, min(5.0, delta / 120.0))
-        self.scale(1.15 ** steps, 1.15 ** steps)
+        self.scale(1.15**steps, 1.15**steps)
         self._emit_view()
         event.accept()
 
@@ -398,6 +410,7 @@ class SyncedGraphicsView(QGraphicsView):
 # Conversion helper (PIL Image → QPixmap, View boundary)
 # ---------------------------------------------------------------------------
 
+
 def pil_to_qpixmap(pil_img: Image.Image) -> QPixmap:
     """Convert a PIL :class:`~PIL.Image.Image` to a :class:`~PySide6.QtGui.QPixmap`.
 
@@ -420,6 +433,7 @@ def pil_to_qpixmap(pil_img: Image.Image) -> QPixmap:
 # ---------------------------------------------------------------------------
 # CanvasPair — dual synchronised views
 # ---------------------------------------------------------------------------
+
 
 class CanvasPair(QWidget):
     """Dual synchronised :class:`SyncedGraphicsView` views displayed side-by-side.
@@ -446,10 +460,10 @@ class CanvasPair(QWidget):
         """
         super().__init__(parent)
 
-        self.scene_left  = QGraphicsScene()
+        self.scene_left = QGraphicsScene()
         self.scene_right = QGraphicsScene()
-        self.view_left   = SyncedGraphicsView(self.scene_left)
-        self.view_right  = SyncedGraphicsView(self.scene_right)
+        self.view_left = SyncedGraphicsView(self.scene_left)
+        self.view_right = SyncedGraphicsView(self.scene_right)
 
         self.view_left.setBackgroundBrush(QBrush(QColor(0, 0, 0)))
         self.view_right.setBackgroundBrush(QBrush(QColor(0, 0, 0)))
@@ -463,12 +477,14 @@ class CanvasPair(QWidget):
 
         grid = QGridLayout(self)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.addWidget(QLabel("Segmentation"),   0, 0, alignment=Qt.AlignHCenter)
+        grid.addWidget(QLabel("Segmentation"), 0, 0, alignment=Qt.AlignHCenter)
         grid.addWidget(QLabel("Heatmap Overlay"), 0, 1, alignment=Qt.AlignHCenter)
-        grid.addWidget(self.view_left,  1, 0)
+        grid.addWidget(self.view_left, 1, 0)
         grid.addWidget(self.view_right, 1, 1)
 
-    def _sync(self, target: SyncedGraphicsView, rx: float, ry: float, scale: float) -> None:
+    def _sync(
+        self, target: SyncedGraphicsView, rx: float, ry: float, scale: float
+    ) -> None:
         """Forward a view-state update to *target* without re-emitting.
 
         Args:
@@ -504,7 +520,7 @@ class CanvasPair(QWidget):
         self.scene_left.clear()
         self.scene_right.clear()
 
-        left_px  = pil_to_qpixmap(left_pil)
+        left_px = pil_to_qpixmap(left_pil)
         right_px = pil_to_qpixmap(right_pil)
 
         left_bg = QGraphicsPixmapItem(left_px)
@@ -560,13 +576,17 @@ class CanvasPair(QWidget):
         result = []
         for item in self.scene_left.items():
             if isinstance(item, SegPathItem):
-                result.append({
-                    "pts": [(p.x(), p.y()) for p in item._pts],
-                    "pos": (item.pos().x(), item.pos().y()),
-                })
+                result.append(
+                    {
+                        "pts": [(p.x(), p.y()) for p in item._pts],
+                        "pos": (item.pos().x(), item.pos().y()),
+                    }
+                )
         return result
 
-    def restore_polygons(self, poly_data: list, left_pil: Image.Image, on_any_edit=None) -> None:
+    def restore_polygons(
+        self, poly_data: list, left_pil: Image.Image, on_any_edit=None
+    ) -> None:
         """Restore polygon overlays from a serialised snapshot.
 
         Removes all current polygon items, re-adds the background pixmap if
@@ -585,9 +605,7 @@ class CanvasPair(QWidget):
                 self.scene_left.removeItem(item)
 
         # Re-add background if scene was cleared
-        if not any(
-            isinstance(i, QGraphicsPixmapItem) for i in self.scene_left.items()
-        ):
+        if not any(isinstance(i, QGraphicsPixmapItem) for i in self.scene_left.items()):
             bg = QGraphicsPixmapItem(pil_to_qpixmap(left_pil))
             bg.setZValue(-10)
             self.scene_left.addItem(bg)
@@ -598,7 +616,9 @@ class CanvasPair(QWidget):
             item.setPos(poly["pos"][0], poly["pos"][1])
             self.scene_left.addItem(item)
 
-    def get_polygons_original_coords(self, scale: float, offset: Tuple[int, int]) -> list:
+    def get_polygons_original_coords(
+        self, scale: float, offset: Tuple[int, int]
+    ) -> list:
         """Return all polygon vertices converted to original image coordinates.
 
         Accounts for the item's scene offset and the display-to-original
@@ -626,7 +646,9 @@ class CanvasPair(QWidget):
                 result.append(orig_pts)
         return result
 
-    def get_selected_polygons_original_coords(self, scale: float, offset: Tuple[int, int]) -> list:
+    def get_selected_polygons_original_coords(
+        self, scale: float, offset: Tuple[int, int]
+    ) -> list:
         """Return only selected polygon vertices converted to original image coordinates.
 
         Identical to :meth:`get_polygons_original_coords` but restricted to

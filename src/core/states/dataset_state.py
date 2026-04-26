@@ -28,13 +28,13 @@ class DatasetState:
         self.image_files = []
 
         # Annotations & Metadata
-        self.annotations = {}   # { "img.jpg": [ { "category_name": str, "polygon": [...] } ] }
-        self.inspectors = {}    # { "img.jpg": "John Doe" }
-        self.notes = {}         # { "img.jpg": "Needs review" }
+        self.annotations = {}  # { "img.jpg": [ { "category_name": str, "polygon": [...] } ] }
+        self.inspectors = {}  # { "img.jpg": "John Doe" }
+        self.notes = {}  # { "img.jpg": "Needs review" }
 
         # Class registry — initialized from defaults, NOT cleared on folder load
         self.class_names = list(DEFAULT_CLASSES.keys())
-        self.class_colors = dict(DEFAULT_CLASSES)   # { name: (r, g, b) }
+        self.class_colors = dict(DEFAULT_CLASSES)  # { name: (r, g, b) }
 
     def clear(self) -> None:
         """Reset per-folder data. Class registry is intentionally preserved."""
@@ -85,7 +85,9 @@ class DatasetState:
         if 0 <= index < len(annos):
             annos.pop(index)
 
-    def update_annotation_points(self, image_name: str, index: int, points: list) -> None:
+    def update_annotation_points(
+        self, image_name: str, index: int, points: list
+    ) -> None:
         """Replace the polygon points of an existing annotation.
 
         Args:
@@ -123,8 +125,7 @@ class DatasetState:
             self.class_colors.pop(name, None)
             for img in self.annotations:
                 self.annotations[img] = [
-                    a for a in self.annotations[img]
-                    if a.get("category_name") != name
+                    a for a in self.annotations[img] if a.get("category_name") != name
                 ]
 
     # --- Per-image Metadata ---
