@@ -1,6 +1,3 @@
-from core.states.dataset_state import DatasetState
-
-
 class TestAnnotationCRUD:
     def test_add_annotation(self, state):
         state.image_files = ["img.jpg"]
