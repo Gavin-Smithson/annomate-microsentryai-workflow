@@ -6,7 +6,7 @@ and starts the Qt event loop. Contains no UI code.
 """
 
 
-# I AM ADDING A USELESS COMMENT TO TEST THE CI WORKFLOW
+# I AM STILL TESTING
 
 import sys
 from PySide6.QtWidgets import (
