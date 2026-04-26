@@ -11,9 +11,17 @@ import logging
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFileDialog, QMessageBox,
-    QProgressBar, QGroupBox, QScrollArea, QFrame,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QFileDialog,
+    QMessageBox,
+    QProgressBar,
+    QGroupBox,
+    QScrollArea,
+    QFrame,
 )
 
 from models.validation_model import ValidationModel
@@ -54,9 +62,9 @@ class ValidationWindow(QWidget):
             parent: Optional Qt parent widget. Defaults to ``None``.
         """
         super().__init__(parent)
-        self.model      = model
+        self.model = model
         self.controller = controller
-        self._gen_worker  = None
+        self._gen_worker = None
         self._eval_worker = None
 
         self._init_ui()
@@ -73,10 +81,11 @@ class ValidationWindow(QWidget):
         grp_gen = QGroupBox("Step 1: Generate Ground Truth Masks from JSON")
         gen_layout = QVBoxLayout(grp_gen)
 
-        self.lbl_poly, r1 = self._make_row("Select Images:",  self._select_poly)
-        self.lbl_json, r2 = self._make_row("Select JSON:",    self._select_json)
+        self.lbl_poly, r1 = self._make_row("Select Images:", self._select_poly)
+        self.lbl_json, r2 = self._make_row("Select JSON:", self._select_json)
         self.lbl_mask_out, r3 = self._make_row(
-            "Mask Output:", self._select_mask_out,
+            "Mask Output:",
+            self._select_mask_out,
             tooltip="Selecting this folder also pre-fills the Step 2 GT path.",
         )
         gen_layout.addLayout(r1)
@@ -95,7 +104,7 @@ class ValidationWindow(QWidget):
         grp_eval = QGroupBox("Step 2: Run Evaluation")
         eval_layout = QVBoxLayout(grp_eval)
 
-        self.lbl_gt,   r4 = self._make_row("Select GT Masks:",    self._select_gt)
+        self.lbl_gt, r4 = self._make_row("Select GT Masks:", self._select_gt)
         self.lbl_pred, r5 = self._make_row("Select Predictions:", self._select_pred)
         eval_layout.addLayout(r4)
         eval_layout.addLayout(r5)
@@ -114,10 +123,10 @@ class ValidationWindow(QWidget):
 
         # ---- Results feed ----
         root.addWidget(QLabel("Evaluation Feed:"))
-        self.scroll_area      = QScrollArea()
+        self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.results_container = QWidget()
-        self.results_layout    = QVBoxLayout(self.results_container)
+        self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setAlignment(Qt.AlignTop)
         self.scroll_area.setWidget(self.results_container)
         root.addWidget(self.scroll_area, stretch=1)

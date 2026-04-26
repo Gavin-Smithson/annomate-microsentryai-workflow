@@ -70,6 +70,7 @@ jobs:
         # pytest and pytest-qt aren't in your environment-cpu.yml, so we add them here
         run: pip install pytest pytest-qt
 
+
       - name: Install Headless Display Dependencies (Linux only)
         if: runner.os == 'Linux'
         run: |
