@@ -51,11 +51,11 @@ class ProjectController(QObject):
         autosave_failed (str): Emitted with an error message on autosave failure.
     """
 
-    dirty_changed    = Signal(bool)
-    project_opened   = Signal(str)   # project_name
-    project_saved    = Signal(str)   # annoproj_path
-    autosave_written = Signal(str)   # autosave annoproj path
-    autosave_failed  = Signal(str)   # error message
+    dirty_changed = Signal(bool)
+    project_opened = Signal(str)  # project_name
+    project_saved = Signal(str)  # annoproj_path
+    autosave_written = Signal(str)  # autosave annoproj path
+    autosave_failed = Signal(str)  # error message
 
     def __init__(
         self,
@@ -190,7 +190,8 @@ class ProjectController(QObject):
 
             if image_dir and os.path.isdir(image_dir):
                 files = sorted(
-                    f for f in os.listdir(image_dir)
+                    f
+                    for f in os.listdir(image_dir)
                     if Path(f).suffix.lower() in _IMAGE_EXTENSIONS
                 )
                 ds.image_dir = image_dir
@@ -259,7 +260,8 @@ class ProjectController(QObject):
         if orphaned:
             logger.warning(
                 "Saving with %d orphaned annotation(s) — they will be dropped: %s",
-                len(orphaned), sorted(orphaned),
+                len(orphaned),
+                sorted(orphaned),
             )
 
         path = self._project_io.save_project(
@@ -326,7 +328,8 @@ class ProjectController(QObject):
             OSError: If new_dir cannot be listed.
         """
         files = sorted(
-            f for f in os.listdir(new_dir)
+            f
+            for f in os.listdir(new_dir)
             if Path(f).suffix.lower() in _IMAGE_EXTENSIONS
         )
         state = self._dataset_model.state

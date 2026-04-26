@@ -15,13 +15,13 @@ import logging
 import platform
 from pathlib import Path
 from typing import Tuple, Optional
-
-os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
 import numpy as np
 import torch
 from anomalib.deploy import TorchInferencer
 import cv2
+
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 
 logger = logging.getLogger("MicroSentryAI.AnomalibStrategy")
 
@@ -29,6 +29,7 @@ logger = logging.getLogger("MicroSentryAI.AnomalibStrategy")
 # ---------------------------------------------------------------------------
 # Dynamic Unpickler — bypasses missing classes in torch.load
 # ---------------------------------------------------------------------------
+
 
 class DummyMeta(type):
     """Metaclass that returns :class:`DummyClass` for any unknown class attribute.
@@ -192,6 +193,7 @@ class DynamicPickleModule:
 
 # ---------------------------------------------------------------------------
 
+
 class AnomalibStrategy:
     """Strategy for PyTorch (``.pt``, ``.ckpt``) anomaly detection models.
 
@@ -292,20 +294,25 @@ class AnomalibStrategy:
             os.environ["TRUST_REMOTE_CODE"] = "1"
 
             if path.suffix not in (".pt", ".ckpt"):
-                raise ValueError(f"Unsupported file type: {path.suffix}. Expected .pt or .ckpt")
+                raise ValueError(
+                    f"Unsupported file type: {path.suffix}. Expected .pt or .ckpt"
+                )
 
             self.model_type = "torch"
             resolved_device = self._resolve_device()
             final_device = resolved_device.upper()
 
             import functools
+
             original_torch_load = torch.load
             original_posix_path = pathlib.PosixPath
 
             try:
                 # Attempt 1: Anomalib TorchInferencer (monkey-patch forces CPU deserialisation)
                 try:
-                    torch.load = functools.partial(original_torch_load, map_location="cpu")
+                    torch.load = functools.partial(
+                        original_torch_load, map_location="cpu"
+                    )
                     if platform.system() == "Windows":
                         pathlib.PosixPath = pathlib.WindowsPath
 
@@ -313,20 +320,33 @@ class AnomalibStrategy:
                         logger.debug("Applying MPS shim: initialising on CPU first.")
                         t_inferencer = time.perf_counter()
                         self.torch_inferencer = TorchInferencer(path=path, device="cpu")
-                        logger.info("Load phase: TorchInferencer init — %.2fs", time.perf_counter() - t_inferencer)
+                        logger.info(
+                            "Load phase: TorchInferencer init — %.2fs",
+                            time.perf_counter() - t_inferencer,
+                        )
 
                         t_mps = time.perf_counter()
                         mps_device = torch.device("mps")
                         if hasattr(self.torch_inferencer, "model"):
-                            self.torch_inferencer.model = self.torch_inferencer.model.to(mps_device)
+                            self.torch_inferencer.model = (
+                                self.torch_inferencer.model.to(mps_device)
+                            )
                         self.torch_inferencer.device = mps_device
-                        logger.info("Load phase: MPS device move — %.2fs", time.perf_counter() - t_mps)
+                        logger.info(
+                            "Load phase: MPS device move — %.2fs",
+                            time.perf_counter() - t_mps,
+                        )
 
                         final_device = "MPS (Apple Silicon)"
                     else:
                         t_inferencer = time.perf_counter()
-                        self.torch_inferencer = TorchInferencer(path=path, device=resolved_device)
-                        logger.info("Load phase: TorchInferencer init — %.2fs", time.perf_counter() - t_inferencer)
+                        self.torch_inferencer = TorchInferencer(
+                            path=path, device=resolved_device
+                        )
+                        logger.info(
+                            "Load phase: TorchInferencer init — %.2fs",
+                            time.perf_counter() - t_inferencer,
+                        )
 
                     self.model_name = f"Anomalib (Torch) [{final_device}]"
                     logger.info("Loaded %s via TorchInferencer", self.model_name)
@@ -337,13 +357,22 @@ class AnomalibStrategy:
 
             except Exception as anomalib_err:
                 # Attempt 2: Raw PyTorch fallback with DynamicUnpickler
-                logger.warning("TorchInferencer rejected the model (%s). Trying raw fallback.", anomalib_err)
+                logger.warning(
+                    "TorchInferencer rejected the model (%s). Trying raw fallback.",
+                    anomalib_err,
+                )
                 self.torch_inferencer = None
 
-                device_obj = torch.device(resolved_device if resolved_device != "mps" else "cpu")
+                device_obj = torch.device(
+                    resolved_device if resolved_device != "mps" else "cpu"
+                )
                 t_raw = time.perf_counter()
-                loaded_data = torch.load(path, map_location=device_obj, pickle_module=DynamicPickleModule)
-                logger.info("Load phase: raw torch.load — %.2fs", time.perf_counter() - t_raw)
+                loaded_data = torch.load(
+                    path, map_location=device_obj, pickle_module=DynamicPickleModule
+                )
+                logger.info(
+                    "Load phase: raw torch.load — %.2fs", time.perf_counter() - t_raw
+                )
 
                 if isinstance(loaded_data, dict):
                     if "state_dict" in loaded_data and "model" not in loaded_data:
@@ -354,7 +383,9 @@ class AnomalibStrategy:
                     elif "model" in loaded_data:
                         self.raw_model = loaded_data["model"]
                     else:
-                        raise ValueError("Loaded dict does not contain a recognisable model graph.")
+                        raise ValueError(
+                            "Loaded dict does not contain a recognisable model graph."
+                        )
                 else:
                     self.raw_model = loaded_data
 
@@ -365,7 +396,10 @@ class AnomalibStrategy:
                     try:
                         t_mps = time.perf_counter()
                         self.raw_model = self.raw_model.to(torch.device("mps"))
-                        logger.info("Load phase: MPS device move — %.2fs", time.perf_counter() - t_mps)
+                        logger.info(
+                            "Load phase: MPS device move — %.2fs",
+                            time.perf_counter() - t_mps,
+                        )
                         final_device = "MPS (Apple Silicon)"
                     except Exception as mps_err:
                         logger.debug("Failed to push raw model to MPS: %s", mps_err)
@@ -490,7 +524,11 @@ class AnomalibStrategy:
             if isinstance(output, tuple):
                 for item in output:
                     if isinstance(item, torch.Tensor):
-                        if item.ndim >= 2 and item.numel() > 1 and item.is_floating_point():
+                        if (
+                            item.ndim >= 2
+                            and item.numel() > 1
+                            and item.is_floating_point()
+                        ):
                             heatmap = item.squeeze().cpu().numpy()
                         elif item.numel() == 1:
                             score = float(item.cpu().item())

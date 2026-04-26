@@ -11,8 +11,13 @@ Rules (consistent with other views):
 import os
 
 from PySide6.QtWidgets import (
-    QMainWindow, QTabWidget, QVBoxLayout, QWidget, QInputDialog,
-    QFileDialog, QMessageBox,
+    QMainWindow,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+    QInputDialog,
+    QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtGui import QAction, QKeySequence
 
@@ -54,17 +59,17 @@ class AppWindow(QMainWindow):
         self.setWindowTitle(_APP_TITLE)
         self.resize(1400, 900)
 
-        self.dataset_model        = dataset_model
-        self.inference_model      = inference_model
-        self.validation_model     = validation_model
-        self.io_controller        = io_controller
+        self.dataset_model = dataset_model
+        self.inference_model = inference_model
+        self.validation_model = validation_model
+        self.io_controller = io_controller
         self.inference_controller = inference_controller
         self.validation_controller = validation_controller
-        self.project_controller   = project_controller
+        self.project_controller = project_controller
 
         # Sub-views
-        self.annomate_view   = ImageAnnotator(dataset_model, io_controller)
-        self.sentry_view     = MicroSentryWindow(
+        self.annomate_view = ImageAnnotator(dataset_model, io_controller)
+        self.sentry_view = MicroSentryWindow(
             dataset_model, inference_model, inference_controller, io_controller
         )
         self.validation_view = ValidationWindow(validation_model, validation_controller)
@@ -78,8 +83,8 @@ class AppWindow(QMainWindow):
 
         # Tab widget
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.annomate_view,   "AnnoMate")
-        self.tabs.addTab(self.sentry_view,     "MicroSentry AI")
+        self.tabs.addTab(self.annomate_view, "AnnoMate")
+        self.tabs.addTab(self.sentry_view, "MicroSentry AI")
         self.tabs.addTab(self.validation_view, "Validation")
 
         central = QWidget()
@@ -116,17 +121,17 @@ class AppWindow(QMainWindow):
             act.triggered.connect(slot)
             file_menu.addAction(act)
 
-        add("New Project",       "Ctrl+N",       self._new_project)
-        add("Open Project…",     "Ctrl+O",       self._open_project)
-        add("Save Project",      "Ctrl+S",       self._save_project)
-        add("Save Project As…",  "Ctrl+Shift+S", self._save_project_as)
+        add("New Project", "Ctrl+N", self._new_project)
+        add("Open Project…", "Ctrl+O", self._open_project)
+        add("Save Project", "Ctrl+S", self._save_project)
+        add("Save Project As…", "Ctrl+Shift+S", self._save_project_as)
         file_menu.addSeparator()
-        add("Relocate Images…",  "",             self._relocate_images)
+        add("Relocate Images…", "", self._relocate_images)
         file_menu.addSeparator()
-        add("Export COCO JSON…", "",             self._export_coco)
-        add("Import COCO JSON…", "",             self._import_coco)
+        add("Export COCO JSON…", "", self._export_coco)
+        add("Import COCO JSON…", "", self._import_coco)
         file_menu.addSeparator()
-        add("Exit",              "Ctrl+Q",       self.close)
+        add("Exit", "Ctrl+Q", self.close)
 
     # ================================================================== #
     # Project slots
@@ -150,7 +155,9 @@ class AppWindow(QMainWindow):
         try:
             project_data, warnings = self.project_controller.open_project(path)
         except Exception as exc:
-            QMessageBox.critical(self, "Open Project", f"Could not read project:\n{exc}")
+            QMessageBox.critical(
+                self, "Open Project", f"Could not read project:\n{exc}"
+            )
             return
 
         self.annomate_view.refresh_class_combo()
@@ -181,6 +188,7 @@ class AppWindow(QMainWindow):
         # V2: use model query, not state directly
         image_dir = self.dataset_model.get_image_dir()
         from pathlib import Path
+
         default_name = Path(image_dir).name if image_dir else "project"
 
         name, ok = QInputDialog.getText(
@@ -200,7 +208,9 @@ class AppWindow(QMainWindow):
         warning = self.project_controller.orphaned_annotations_warning()
         if warning:
             reply = QMessageBox.warning(
-                self, "Orphaned Annotations", warning,
+                self,
+                "Orphaned Annotations",
+                warning,
                 QMessageBox.Ok | QMessageBox.Cancel,
                 QMessageBox.Cancel,
             )
@@ -221,15 +231,20 @@ class AppWindow(QMainWindow):
         try:
             self.project_controller.relocate_images(new_dir)
         except Exception as exc:
-            QMessageBox.critical(self, "Relocate Images", f"Could not scan folder:\n{exc}")
+            QMessageBox.critical(
+                self, "Relocate Images", f"Could not scan folder:\n{exc}"
+            )
             return
         self.annomate_view.refresh_class_combo()
 
         orphan_msg = self.project_controller.orphaned_annotations_warning()
         if orphan_msg:
             QMessageBox.information(
-                self, "Annotations After Relocation",
-                orphan_msg.replace("Continue?", "They will be dropped on the next save.")
+                self,
+                "Annotations After Relocation",
+                orphan_msg.replace(
+                    "Continue?", "They will be dropped on the next save."
+                ),
             )
 
     # ================================================================== #
@@ -238,8 +253,13 @@ class AppWindow(QMainWindow):
 
     def _export_coco(self) -> None:
         from pathlib import Path
+
         image_dir = self.dataset_model.get_image_dir()
-        default = f"{Path(image_dir).name}_coco.json" if image_dir else "annotations.coco.json"
+        default = (
+            f"{Path(image_dir).name}_coco.json"
+            if image_dir
+            else "annotations.coco.json"
+        )
         path, _ = QFileDialog.getSaveFileName(
             self, "Export COCO JSON", default, "JSON (*.json)"
         )
@@ -279,7 +299,8 @@ class AppWindow(QMainWindow):
     def _confirm_discard(self) -> bool:
         """Prompt save/discard for unsaved changes. Returns True to proceed."""
         reply = QMessageBox.question(
-            self, "Unsaved Changes",
+            self,
+            "Unsaved Changes",
             "You have unsaved changes. Save before continuing?",
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
             QMessageBox.Save,
@@ -292,7 +313,8 @@ class AppWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         if self.project_controller.is_dirty:
             reply = QMessageBox.question(
-                self, "Unsaved Changes",
+                self,
+                "Unsaved Changes",
                 "You have unsaved changes. Save before closing?",
                 QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
                 QMessageBox.Save,
@@ -319,7 +341,9 @@ class AppWindow(QMainWindow):
             class_names = [default_class]
 
         chosen, ok = QInputDialog.getItem(
-            self, "Choose Class", "Assign polygons to class:",
+            self,
+            "Choose Class",
+            "Assign polygons to class:",
             class_names,
             class_names.index(default_class) if default_class in class_names else 0,
             False,
